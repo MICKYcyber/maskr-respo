@@ -1,255 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Plane Game</title>
-    <!-- Embedded CSS within style tags -->
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-message_box_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-customization.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-checkpoint_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-debug_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-editor.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-editor_height_selector.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-editor_checkpoint_order.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-hint.css">
+		<link rel="stylesheet" type="text/css" href="https://github.com/Blobby-Boi/polytrack/blob/main/css/css-leaderboard.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-loading_spinner.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-loading_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-menu.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-nickname.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-settings_menu.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-speedometer.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-theme.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-time_announcer.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-timer.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-track_export_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-track_info.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-track_selection_ui.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-transition_system.css">
+		<link rel="stylesheet" type="text/css" href="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/css/css-verifier.css">
+	</head>
+	<body>
+		<canvas id="screen"></canvas>
+		<div id="ui"></div>
+		<div id="transition-layer"></div>
 
-        #blocker {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 20px;
-            z-index: 1;
-        }
+		<script src="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/js/2176-lib-ammo.js" defer></script>
 
-        #instructions {
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <div id="blocker">
-        <div id="instructions">
-            <p>Click to Lock Mouse</p>
-            <p>Use WASD or Arrow Keys to move</p>
-            <p>Look around with the mouse</p>
-        </div>
-    </div>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
-    <!-- Embedded JavaScript within script tags -->
-    <script type="module">
-        import * as THREE from 'three';
-        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-
-        let camera, scene, renderer, controls;
-        let plane, lastMouseMoved = Date.now();
-        let followMode = false;
-        const mouseInactivityTimeout = 5000;
-
-        const objects = [];
-
-        let moveForward = false;
-        let moveBackward = false;
-        let moveLeft = false;
-        let moveRight = false;
-        let canJump = false;
-
-        let prevTime = performance.now();
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-
-        // Initialize the scene, camera, and renderer
-        function init() {
-            // Set up the scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); // Sky blue background
-            scene.fog = new THREE.Fog(0x87ceeb, 0, 750);
-
-            // Set up the camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
-
-            // Set up the renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            // Add lighting
-            const light = new THREE.HemisphereLight(0xeeeeff, 0x777788, 2.5);
-            light.position.set(0.5, 1, 0.75);
-            scene.add(light);
-
-            // Add pointer lock controls
-            controls = new PointerLockControls(camera, document.body);
-            const blocker = document.getElementById('blocker');
-            const instructions = document.getElementById('instructions');
-
-            instructions.addEventListener('click', function () {
-                controls.lock();
-            });
-
-            controls.addEventListener('lock', function () {
-                instructions.style.display = 'none';
-                blocker.style.display = 'none';
-            });
-
-            controls.addEventListener('unlock', function () {
-                blocker.style.display = 'flex';
-                instructions.style.display = '';
-                followMode = false; // Reset follow mode when unlocked
-            });
-
-            // Create the ground
-            const groundGeometry = new THREE.PlaneGeometry(2000, 2000, 100, 100);
-            groundGeometry.rotateX(-Math.PI / 2);
-            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x559639 }); // Green ground
-            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-            scene.add(ground);
-
-            // Create the player plane
-            const planeGeometry = new THREE.BoxGeometry(5, 1, 3);
-            const planeMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-            plane = new THREE.Mesh(planeGeometry, planeMaterial);
-            plane.position.set(0, 5, 0);
-            scene.add(plane);
-
-            objects.push(plane);
-
-            // Add key and mouse event listeners
-            const onKeyDown = function (event) {
-                lastMouseMoved = Date.now();
-                switch (event.code) {
-                    case 'ArrowUp':
-                    case 'KeyW':
-                        moveForward = true;
-                        break;
-                    case 'ArrowLeft':
-                    case 'KeyA':
-                        moveLeft = true;
-                        break;
-                    case 'ArrowDown':
-                    case 'KeyS':
-                        moveBackward = true;
-                        break;
-                    case 'ArrowRight':
-                    case 'KeyD':
-                        moveRight = true;
-                        break;
-                }
-            };
-
-            const onKeyUp = function (event) {
-                lastMouseMoved = Date.now();
-                switch (event.code) {
-                    case 'ArrowUp':
-                    case 'KeyW':
-                        moveForward = false;
-                        break;
-                    case 'ArrowLeft':
-                    case 'KeyA':
-                        moveLeft = false;
-                        break;
-                    case 'ArrowDown':
-                    case 'KeyS':
-                        moveBackward = false;
-                        break;
-                    case 'ArrowRight':
-                    case 'KeyD':
-                        moveRight = false;
-                        break;
-                }
-            };
-
-            const onMouseMove = function () {
-                if (controls.isLocked) {
-                    lastMouseMoved = Date.now();
-                    followMode = false;
-                }
-            };
-
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-            document.addEventListener('mousemove', onMouseMove);
-
-            // Handle window resize
-            window.addEventListener('resize', onWindowResize);
-        }
-
-        // Adjust camera and renderer on window resize
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // Main animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const time = performance.now();
-
-            if (controls.isLocked) {
-                const delta = (time - prevTime) / 1000;
-
-                velocity.x -= velocity.x * 10.0 * delta;
-                velocity.z -= velocity.z * 10.0 * delta;
-
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.normalize();
-
-                // Handle plane movement
-                if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta;
-
-                plane.translateX(velocity.x * delta);
-                plane.translateZ(velocity.z * delta);
-
-                // Check for mouse inactivity to enable follow mode
-                if (Date.now() - lastMouseMoved > mouseInactivityTimeout) {
-                    followMode = true;
-                }
-
-                if (followMode) {
-                    // Smoothly move the camera to follow the plane
-                    const cameraOffset = new THREE.Vector3(0, 10, -20); // Adjust offset as needed
-                    cameraOffset.applyQuaternion(plane.quaternion);
-
-                    const targetPosition = new THREE.Vector3();
-                    plane.getWorldPosition(targetPosition);
-                    targetPosition.add(cameraOffset);
-
-                    camera.position.lerp(targetPosition, 0.05); // Lerp for smooth movement
-
-                    // Update camera to look at the plane
-                    const lookAtPosition = new THREE.Vector3();
-                    plane.getWorldPosition(lookAtPosition);
-                    camera.lookAt(lookAtPosition);
-
-                } else {
-                    // Keep the plane and camera separate for manual control
-                    plane.position.copy(controls.getObject().position);
-                }
-            }
-
-            prevTime = time;
-            renderer.render(scene, camera);
-        }
-
-        // Run the game
-        init();
-        animate();
-    </script>
-</body>
+		<script type="module" src="https://raw.githubusercontent.com/Blobby-Boi/polytrack/refs/heads/main/js/9209-dist-main.bundle.js" defer></script>
+	</body>
 </html>
