@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Proxy HTML Viewer</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        .top-bar {
+            background-color: #000;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            gap: 10px;
+            height: 50px;
+        }
+
+        .top-bar input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .top-bar button {
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .top-bar button:hover {
+            background-color: #555;
+        }
+
+        #previewFrame {
+            width: 100%;
+            height: calc(100% - 50px);
+            border: none;
+        }
+
+        /* Hide all except the isolated button */
+        .hidden-except-isolated > *:not(#isolatedBtn) {
+            display: none;
+        }
+        /* Center isolated button */
+        .hidden-except-isolated {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <input type="text" id="urlInput" placeholder="Enter URL (e.g. example.com)" />
+        <button onclick="fetchAndInject()">Fetch</button>
+        <button onclick="fetchAndOpenNewTab()">Open in New Tab</button>
+        <button id="isolatedBtn" onclick="handleIsolatedClick()">Open Isolated</button>
+    </div>
+
+    <iframe id="previewFrame"></iframe>
+
+    <script>
+        // Inject CORS Anywhere Proxy Logic
+        (function() {
+            var cors_api_host = 'cors-anywhere.herokuapp.com';
+            var cors_api_url = 'https://' + cors_api_host + '/';
+            var slice = [].slice;
+            var origin = window.location.protocol + '//' + window.location.host;
+            var open = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function() {
+                var args = slice.call(arguments);
+                var targetOrigin = /^https?:\/\/([^\/]+)/i.exec(args[1]);
+                if (targetOrigin && targetOrigin[0].toLowerCase() !== origin &&
+                    targetOrigin[1] !== cors_api_host) {
+                    args[1] = cors_api_url + args[1];
+                }
+                return open.apply(this, args);
+            };
+        })();
+
+        function normalizeURL(input) {
+            let url = input.trim();
+
+            // Add https:// if missing
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+            }
+
+            try {
+                let parsed = new URL(url);
+                let domain = parsed.hostname;
+
+                // Add www. if not present
+                if (!/^www\./i.test(domain)) {
+                    url = parsed.protocol + '//www.' + domain + parsed.pathname + parsed.search + parsed.hash;
+                }
+            } catch (e) {
+                alert("Invalid URL.");
+                throw e;
+            }
+
+            return url;
+        }
+
+        function fetchAndInject() {
+            const rawInput = document.getElementById('urlInput').value;
+            const iframe = document.getElementById('previewFrame');
+
+            if (!rawInput) {
+                alert("Please enter a valid URL.");
+                return;
+            }
+
+            let url;
+            try {
+                url = normalizeURL(rawInput);
+            } catch {
+                iframe.contentWindow.document.body.innerHTML = `<p style="color:red;">Invalid URL format.</p>`;
+                return;
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const doc = iframe.contentWindow.document;
+                        doc.open();
+                        doc.write(xhr.responseText);
+                        doc.close();
+                    } else {
+                        iframe.contentWindow.document.body.innerHTML = `<p style="color:red;">Failed to load: ${xhr.status}</p>`;
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                iframe.contentWindow.document.body.innerHTML = `<p style="color:red;">Request failed.</p>`;
+            };
+            xhr.send();
+
+            // Temporary loading message
+            iframe.contentWindow.document.body.innerHTML = '<p>Loading...</p>';
+        }
+
+        function fetchAndOpenNewTab() {
+            const rawInput = document.getElementById('urlInput').value;
+
+            if (!rawInput) {
+                alert("Please enter a valid URL.");
+                return;
+            }
+
+            let url;
+            try {
+                url = normalizeURL(rawInput);
+            } catch {
+                alert("Invalid URL format.");
+                return;
+            }
+
+            // Open the new window immediately (blank)
+            const newWindow = window.open('about:blank', '_blank');
+            if (!newWindow) {
+                alert("Popup blocked. Please allow popups for this site.");
+                return;
+            }
+            newWindow.opener = null; // Extra safety
+            newWindow.document.write('<p>Loading...</p>');
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        newWindow.document.open();
+                        newWindow.document.write(xhr.responseText);
+                        newWindow.document.close();
+                    } else {
+                        newWindow.document.body.innerHTML = `<p style="color:red;">Failed to load: ${xhr.status}</p>`;
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                newWindow.document.body.innerHTML = `<p style="color:red;">Request failed.</p>`;
+            };
+            xhr.send();
+        }
+
+        // New logic for "Open Isolated"
+        let isolatedMode = false;
+        function handleIsolatedClick() {
+            if (!isolatedMode) {
+                // Enter isolated mode: hide everything except the button
+                document.body.classList.add('hidden-except-isolated');
+                isolatedMode = true;
+                const btn = document.getElementById('isolatedBtn');
+                btn.textContent = "Open in New Tab Now";
+            } else {
+                // Open new tab and write page HTML
+                const newWindow = window.open('about:blank', '_blank');
+                if (!newWindow) {
+                    alert("Popup blocked. Please allow popups for this site.");
+                    return;
+                }
+                newWindow.opener = null; // Extra safety
+
+                // Grab the entire HTML content of this page
+                // We want to write a full HTML document to the new window
+
+                // Use cloneNode to avoid mutation while serializing
+                const docClone = document.documentElement.cloneNode(true);
+
+                // Serialize the cloned document
+                const serialized = '<!DOCTYPE html>\n' + docClone.outerHTML;
+
+                newWindow.document.open();
+                newWindow.document.write(serialized);
+                newWindow.document.close();
+
+                // Reset page to normal state
+                document.body.classList.remove('hidden-except-isolated');
+                isolatedMode = false;
+                const btn = document.getElementById('isolatedBtn');
+                btn.textContent = "Open Isolated";
+            }
+        }
+    </script>
+
+</body>
+</html>
